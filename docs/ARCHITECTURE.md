@@ -32,7 +32,7 @@ flowchart TB
   Grafana --> Prometheus
 ```
 
-The default Compose stack places the app and Redis on one task-owned network. Only loopback ports are published. Production should use a dedicated private Redis deployment with ACL/TLS, `noeviction`, persistence, replication, backups, and latency/clock alerts.
+The default Compose stack uses a task-owned internal backend for service traffic and a separate task-owned bridge that makes loopback-only published ports work across Docker Engine versions. Production should use a dedicated private Redis deployment with ACL/TLS, `noeviction`, persistence, replication, backups, and latency/clock alerts.
 
 ## Class relationships
 

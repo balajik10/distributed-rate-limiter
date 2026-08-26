@@ -8,7 +8,7 @@ services:
       - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     volumes:
       - redis-data:/data
-    networks: [backend]
+    networks: [backend, host-access]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 2s
@@ -31,7 +31,7 @@ services:
       SERVER_PORT: "8080"
     ports:
       - "127.0.0.1:${APP_PORT:-8080}:8080"
-    networks: [backend]
+    networks: [backend, host-access]
     depends_on:
       redis:
         condition: service_healthy
@@ -57,7 +57,7 @@ services:
       - prometheus-data:/prometheus
     ports:
       - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
-    networks: [backend]
+    networks: [backend, host-access]
     depends_on:
       app:
         condition: service_healthy
@@ -83,7 +83,7 @@ services:
       - grafana-data:/var/lib/grafana
     ports:
       - "127.0.0.1:${GRAFANA_PORT:-3000}:3000"
-    networks: [backend]
+    networks: [backend, host-access]
     depends_on:
       prometheus:
         condition: service_healthy
@@ -98,6 +98,7 @@ services:
 networks:
   backend:
     internal: true
+  host-access:
 
 volumes:
   redis-data:

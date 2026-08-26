@@ -2,7 +2,7 @@
 FROM maven:3.9.9-eclipse-temurin-21-alpine AS builder
 WORKDIR /workspace
 COPY . .
-RUN ./mvnw -B -ntp -DskipTests package
+RUN MAVEN_CONFIG= ./mvnw -B -ntp -DskipTests package
 
 FROM eclipse-temurin:21-jre-alpine AS runtime
 RUN apk add --no-cache curl \

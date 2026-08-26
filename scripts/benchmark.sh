@@ -59,6 +59,14 @@ for tool in bash docker curl jq awk git; do
   command -v "$tool" >/dev/null 2>&1 || { echo "Required tool not found: $tool" >&2; exit 2; }
 done
 
+curl_api() {
+  if [[ -n "$api_key" ]]; then
+    curl -H "X-API-Key: $api_key" "$@"
+  else
+    curl "$@"
+  fi
+}
+
 docker_network_args=()
 if [[ -z "$base_url" ]]; then
   app_container="$(docker compose ps -q app)"
@@ -86,17 +94,15 @@ metadata_path="build/results/k6-${scenario}-${timestamp}-environment.txt"
 metrics_before_path="build/results/k6-${scenario}-${timestamp}-metrics-before.prom"
 metrics_after_path="build/results/k6-${scenario}-${timestamp}-metrics-after.prom"
 
-metrics_headers=()
-if [[ -n "$api_key" ]]; then metrics_headers=(-H "X-API-Key: $api_key"); fi
 if [[ "$scenario" == "algorithms" ]]; then
   configured_batch=1
 else
-  policy_json="$(curl --fail --silent --show-error "${metrics_headers[@]}" "$policy_url_base/$policy_id")"
+  policy_json="$(curl_api --fail --silent --show-error "$policy_url_base/$policy_id")"
   configured_batch="$(jq -er '.localCache.maxLeaseSize' <<<"$policy_json")"
 fi
-curl --fail --silent --show-error "${metrics_headers[@]}" "$metrics_url" >"$metrics_before_path" 2>/dev/null || : >"$metrics_before_path"
+curl_api --fail --silent --show-error "$metrics_url" >"$metrics_before_path" 2>/dev/null || : >"$metrics_before_path"
 
-docker run --rm --user "$(id -u):$(id -g)" "${docker_network_args[@]}" \
+docker run --rm --user "$(id -u):$(id -g)" ${docker_network_args[@]+"${docker_network_args[@]}"} \
   -v "$repo_root/benchmarks/k6:/scripts:ro" \
   -v "$repo_root/build/results:/results" \
   -e BASE_URL="$base_url" \
@@ -117,7 +123,7 @@ docker run --rm --user "$(id -u):$(id -g)" "${docker_network_args[@]}" \
 [[ -s "$summary_markdown_path" ]] || { echo "k6 did not create a Markdown summary" >&2; exit 1; }
 jq -e '.metrics.checks.values.rate == 1 and (.metrics.unexpected_responses.values.count // 0) == 0' "$summary_path" >/dev/null
 
-curl --fail --silent --show-error "${metrics_headers[@]}" "$metrics_url" >"$metrics_after_path" 2>/dev/null || : >"$metrics_after_path"
+curl_api --fail --silent --show-error "$metrics_url" >"$metrics_after_path" 2>/dev/null || : >"$metrics_after_path"
 metric_sum() {
   local metric="$1" file="$2"
   awk -v metric="$metric" '$1 ~ ("^" metric "(\\{|$)") {sum += $NF} END {printf "%.0f", sum + 0}' "$file"

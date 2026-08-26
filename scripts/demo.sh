@@ -4,17 +4,21 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 base_url="${BASE_URL:-http://localhost:8080}"
 api_key="${API_KEY:-}"
-tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/rate-limiter-demo.XXXXXX")"
+tmp_base="${TMPDIR:-/tmp}"
+tmp_dir="$(mktemp -d "${tmp_base%/}/rate-limiter-demo.XXXXXX")"
 trap 'rm -rf "$tmp_dir"' EXIT
 
 for tool in bash curl jq; do
   command -v "$tool" >/dev/null 2>&1 || { echo "Required tool not found: $tool" >&2; exit 2; }
 done
 
-auth_headers=()
-if [[ -n "$api_key" ]]; then
-  auth_headers=(-H "X-API-Key: $api_key")
-fi
+curl_api() {
+  if [[ -n "$api_key" ]]; then
+    curl -H "X-API-Key: $api_key" "$@"
+  else
+    curl "$@"
+  fi
+}
 
 ready=0
 for _ in {1..60}; do
@@ -27,7 +31,7 @@ done
 [[ "$ready" == "1" ]] || { echo "Service did not become ready within 60 seconds" >&2; exit 1; }
 
 echo "Sanitized policies"
-curl --fail --silent --show-error "${auth_headers[@]}" "$base_url/api/v1/policies" | tee "$tmp_dir/policies.json" | jq .
+curl_api --fail --silent --show-error "$base_url/api/v1/policies" | tee "$tmp_dir/policies.json" | jq .
 for policy in api-standard login-strict search-default; do
   jq -e --arg policy "$policy" '.. | objects | select(.id? == $policy or .policyId? == $policy)' "$tmp_dir/policies.json" >/dev/null
 done
@@ -39,11 +43,10 @@ check_once() {
   local policy="$1" key="$2" body_file="$3" header_file="$4"
   local request_id="demo:${policy}:$$"
   local status
-  status="$(curl --silent --show-error -D "$header_file" -o "$body_file" -w '%{http_code}' \
+  status="$(curl_api --silent --show-error -D "$header_file" -o "$body_file" -w '%{http_code}' \
     -X POST "$base_url/api/v1/rate-limits/check" \
     -H 'Content-Type: application/json' \
     -H "X-Request-Id: $request_id" \
-    "${auth_headers[@]}" \
     --data "{\"policyId\":\"$policy\",\"key\":\"$key\",\"permits\":1}")"
   [[ "$status" == "200" ]] || { jq . "$body_file" >&2 || true; echo "Expected 200 for $policy, got $status" >&2; exit 1; }
   jq -e --argjson fields "$stable_fields" --arg id "$request_id" \
@@ -63,10 +66,9 @@ denials=0
 for attempt in {1..6}; do
   body="$tmp_dir/login-$attempt.json"
   headers="$tmp_dir/login-$attempt.headers"
-  status="$(curl --silent --show-error -D "$headers" -o "$body" -w '%{http_code}' \
+  status="$(curl_api --silent --show-error -D "$headers" -o "$body" -w '%{http_code}' \
     -X POST "$base_url/api/v1/rate-limits/check" \
     -H 'Content-Type: application/json' \
-    "${auth_headers[@]}" \
     --data "{\"policyId\":\"login-strict\",\"key\":\"$unique-login\",\"permits\":1}")"
   expected_status="200"
   if ((attempt == 6)); then expected_status="429"; fi
@@ -90,7 +92,7 @@ done
 echo "login-strict: five HTTP 200 responses followed by one HTTP 429"
 
 echo "Selected metrics"
-curl --fail --silent --show-error "${auth_headers[@]}" "$base_url/actuator/prometheus" \
+curl_api --fail --silent --show-error "$base_url/actuator/prometheus" \
   | grep -E '^(ratelimiter_decisions|ratelimiter_redis_calls|ratelimiter_local_cache_hits)' \
   | head -20 || true
 

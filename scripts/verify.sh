@@ -39,18 +39,26 @@ curl --fail --silent --show-error http://localhost:8080/v3/api-docs | jq -e '.op
 ./scripts/benchmark.sh --smoke
 
 docker compose --profile observability up -d
-curl --fail --silent --show-error http://localhost:8080/actuator/prometheus | grep -q ratelimiter
+curl --fail --silent --show-error http://localhost:8080/actuator/prometheus | grep ratelimiter >/dev/null
 
 prometheus_up=0
 grafana_up=0
+grafana_datasource_up=0
+grafana_dashboard_up=0
 for _ in {1..60}; do
   if curl --fail --silent --show-error http://localhost:9090/-/ready >/dev/null 2>&1 \
     && [[ "$(curl --silent --show-error 'http://localhost:9090/api/v1/query?query=up%7Bjob%3D%22rate-limiter%22%7D' | jq -r '.data.result[0].value[1] // "0"')" == "1" ]]; then prometheus_up=1; fi
-  if curl --fail --silent --show-error http://localhost:3000/api/health | jq -e '.database == "ok"' >/dev/null 2>&1; then grafana_up=1; fi
-  [[ "$prometheus_up" == "1" && "$grafana_up" == "1" ]] && break
+  if curl --fail --silent --show-error http://localhost:3000/api/health | jq -e '.database == "ok"' >/dev/null 2>&1; then
+    grafana_up=1
+    if curl --fail --silent --show-error http://localhost:3000/api/datasources/uid/prometheus \
+      | jq -e '.uid == "prometheus" and .type == "prometheus"' >/dev/null 2>&1; then grafana_datasource_up=1; fi
+    if curl --fail --silent --show-error http://localhost:3000/api/dashboards/uid/distributed-rate-limiter \
+      | jq -e '.dashboard.uid == "distributed-rate-limiter" and .dashboard.title == "Distributed Rate Limiter"' >/dev/null 2>&1; then grafana_dashboard_up=1; fi
+  fi
+  [[ "$prometheus_up" == "1" && "$grafana_up" == "1" && "$grafana_datasource_up" == "1" && "$grafana_dashboard_up" == "1" ]] && break
   sleep 1
 done
-[[ "$prometheus_up" == "1" && "$grafana_up" == "1" ]]
+[[ "$prometheus_up" == "1" && "$grafana_up" == "1" && "$grafana_datasource_up" == "1" && "$grafana_dashboard_up" == "1" ]]
 curl --fail --silent --show-error http://localhost:3000/api/datasources/uid/prometheus \
   | jq -e '.uid == "prometheus" and .type == "prometheus"' >/dev/null
 curl --fail --silent --show-error http://localhost:3000/api/dashboards/uid/distributed-rate-limiter \

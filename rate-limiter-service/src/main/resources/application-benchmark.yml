@@ -1,0 +1,83 @@
+spring:
+  config:
+    activate:
+      on-profile: benchmark
+
+rate-limiter:
+  cache-maximum-size: 100000
+  ramp-up-duration: 10ms
+  policies:
+    benchmark-token-strict:
+      version: 1
+      algorithm: TOKEN_BUCKET
+      failure-mode: FAIL_CLOSED
+      capacity: 100000
+      refill-tokens: 100000
+      refill-period: 60s
+      local-cache:
+        enabled: false
+        max-lease-size: 1
+        max-lease-ttl: 100ms
+        expected-max-instances: 10
+        max-error-permits: 0
+    benchmark-token-leased:
+      version: 1
+      algorithm: TOKEN_BUCKET
+      failure-mode: FAIL_CLOSED
+      capacity: 100000
+      refill-tokens: 100000
+      refill-period: 60s
+      local-cache:
+        enabled: true
+        max-lease-size: 10
+        max-lease-ttl: 100ms
+        expected-max-instances: 10
+        max-error-permits: 90
+    benchmark-log-strict:
+      version: 1
+      algorithm: SLIDING_WINDOW_LOG
+      failure-mode: FAIL_CLOSED
+      limit: 100000
+      window: 60s
+      local-cache:
+        enabled: false
+        max-lease-size: 1
+        max-lease-ttl: 100ms
+        expected-max-instances: 10
+        max-error-permits: 0
+    benchmark-log-leased:
+      version: 1
+      algorithm: SLIDING_WINDOW_LOG
+      failure-mode: FAIL_CLOSED
+      limit: 100000
+      window: 60s
+      local-cache:
+        enabled: true
+        max-lease-size: 10
+        max-lease-ttl: 100ms
+        expected-max-instances: 10
+        max-error-permits: 90
+    benchmark-counter-strict:
+      version: 1
+      algorithm: SLIDING_WINDOW_COUNTER
+      failure-mode: FAIL_CLOSED
+      limit: 100000
+      window: 60s
+      local-cache:
+        enabled: false
+        max-lease-size: 1
+        max-lease-ttl: 100ms
+        expected-max-instances: 10
+        max-error-permits: 0
+    benchmark-counter-leased:
+      version: 1
+      algorithm: SLIDING_WINDOW_COUNTER
+      failure-mode: FAIL_CLOSED
+      limit: 100000
+      window: 60s
+      local-cache:
+        enabled: true
+        max-lease-size: 10
+        max-lease-ttl: 100ms
+        expected-max-instances: 10
+        max-error-permits: 90

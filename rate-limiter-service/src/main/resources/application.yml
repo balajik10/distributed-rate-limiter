@@ -1,0 +1,133 @@
+spring:
+  application:
+    name: distributed-rate-limiter
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      connect-timeout: ${REDIS_CONNECT_TIMEOUT:500ms}
+      timeout: ${REDIS_COMMAND_TIMEOUT:500ms}
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+  max-http-request-header-size: 16KB
+  tomcat:
+    max-http-form-post-size: 4KB
+    max-swallow-size: 4KB
+
+rate-limiter-service:
+  security:
+    enabled: false
+    api-key: ""
+
+rate-limiter:
+  key-prefix: rl
+  key-hash-secret: ${RATE_LIMITER_KEY_HASH_SECRET:}
+  cache-maximum-size: 100000
+  ramp-up-duration: 2s
+  redis:
+    connect-timeout: ${REDIS_CONNECT_TIMEOUT:500ms}
+    command-timeout: ${REDIS_COMMAND_TIMEOUT:500ms}
+  policies:
+    api-standard:
+      version: 1
+      algorithm: TOKEN_BUCKET
+      failure-mode: FAIL_OPEN
+      capacity: 100
+      refill-tokens: 100
+      refill-period: 60s
+      local-cache:
+        enabled: true
+        max-lease-size: 10
+        max-lease-ttl: 100ms
+        expected-max-instances: 10
+        max-error-permits: 90
+    login-strict:
+      version: 1
+      algorithm: SLIDING_WINDOW_LOG
+      failure-mode: FAIL_CLOSED
+      limit: 5
+      window: 60s
+      local-cache:
+        enabled: false
+        max-lease-size: 1
+        max-lease-ttl: 100ms
+        expected-max-instances: 10
+        max-error-permits: 0
+    search-default:
+      version: 1
+      algorithm: SLIDING_WINDOW_COUNTER
+      failure-mode: FAIL_OPEN
+      limit: 60
+      window: 60s
+      local-cache:
+        enabled: true
+        max-lease-size: 5
+        max-lease-ttl: 100ms
+        expected-max-instances: 10
+        max-error-permits: 40
+
+management:
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+      validate-group-membership: false
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState,rateLimiterRedisHealth
+    prometheus:
+      access: read-only
+  health:
+    redis:
+      enabled: false
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  info:
+    env:
+      enabled: true
+  metrics:
+    distribution:
+      percentiles-histogram:
+        ratelimiter.decision.duration: true
+        ratelimiter.redis.script.duration: true
+
+info:
+  application:
+    name: ${spring.application.name}
+    version: 1.0.0-SNAPSHOT
+  rate-limiter:
+    expected-max-instances: 10
+    lease-bound-note: actual-live-instances-must-not-exceed-this-planning-assumption
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} level=%level logger=%logger{36} requestId=%X{requestId:-} message=%msg%n"
+  level:
+    root: INFO
+    dev.ratelimiter: INFO

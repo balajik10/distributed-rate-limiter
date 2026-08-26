@@ -1,0 +1,23 @@
+spring:
+  config:
+    activate:
+      on-profile: production
+
+rate-limiter-service:
+  security:
+    enabled: true
+    api-key: ${RATE_LIMITER_API_KEY:}
+
+rate-limiter:
+  key-hash-secret: ${RATE_LIMITER_KEY_HASH_SECRET:}
+
+springdoc:
+  api-docs:
+    enabled: ${RATE_LIMITER_OPENAPI_ENABLED:false}
+  swagger-ui:
+    enabled: ${RATE_LIMITER_OPENAPI_ENABLED:false}
+
+management:
+  endpoint:
+    health:
+      show-details: never

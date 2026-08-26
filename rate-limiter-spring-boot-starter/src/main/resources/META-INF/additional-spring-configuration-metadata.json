@@ -1,0 +1,50 @@
+{
+  "properties": [
+    {
+      "name": "rate-limiter.key-prefix",
+      "type": "java.lang.String",
+      "defaultValue": "rl",
+      "description": "Trusted Redis key prefix. Logical keys are always hashed and never included in Redis keys."
+    },
+    {
+      "name": "rate-limiter.key-hash-secret",
+      "type": "java.lang.String",
+      "description": "Optional HMAC-SHA256 secret. Rotating it changes all state keys and requires coordinated deployment."
+    },
+    {
+      "name": "rate-limiter.cache-maximum-size",
+      "type": "java.lang.Long",
+      "defaultValue": 100000,
+      "description": "Maximum number of live local permit leases and bounded ramp-history entries."
+    },
+    {
+      "name": "rate-limiter.ramp-up-duration",
+      "type": "java.time.Duration",
+      "defaultValue": "2s",
+      "description": "Period in which exhausting a lease doubles the next demand-driven reservation batch."
+    },
+    {
+      "name": "rate-limiter.lock-stripes",
+      "type": "java.lang.Integer",
+      "defaultValue": 4096,
+      "description": "Bounded power-of-two striped lock count used only for per-key refill single-flight."
+    },
+    {
+      "name": "rate-limiter.redis.connect-timeout",
+      "type": "java.time.Duration",
+      "defaultValue": "500ms",
+      "description": "Finite Lettuce connection timeout."
+    },
+    {
+      "name": "rate-limiter.redis.command-timeout",
+      "type": "java.time.Duration",
+      "defaultValue": "500ms",
+      "description": "Finite Lettuce command timeout. A timeout is an ambiguous execution and is never retried by the limiter."
+    },
+    {
+      "name": "rate-limiter.policies",
+      "type": "java.util.Map<java.lang.String,dev.ratelimiter.starter.config.PolicyProperties>",
+      "description": "Trusted server-defined policies keyed by immutable policy ID. expected-max-instances is a planning assumption; the real cache timing bound uses actual live lease holders."
+    }
+  ]
+}

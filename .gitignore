@@ -1,0 +1,29 @@
+# Build output
+target/
+**/target/
+build/results/
+*.log
+
+# Local tooling and generated delivery artifacts
+work/
+outputs/
+
+# Editors and operating systems
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# Secrets and local overrides
+.env
+.env.*
+!.env.example
+application-local.yml
+*.pem
+*.key
+*.p12
+
+# Benchmark and coverage output
+*.jfr
+*.hprof
+jacoco.exec

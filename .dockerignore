@@ -1,0 +1,14 @@
+.git
+.github
+.idea
+.vscode
+**/target
+build/results
+work
+outputs
+.env
+.env.*
+*.log
+docs
+benchmarks
+monitoring

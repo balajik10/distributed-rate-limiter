@@ -1,0 +1,31 @@
+groups:
+  - name: distributed-rate-limiter
+    rules:
+      - alert: RateLimiterBackendUnavailable
+        expr: sum(rate(ratelimiter_redis_errors_total[5m])) > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: Redis errors are activating degraded rate-limit behavior
+      - alert: RateLimiterFallbackSustained
+        expr: sum(rate(ratelimiter_fallback_activations_total[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Sustained fail-open or fail-closed decisions detected
+      - alert: RateLimiterDecisionLatencyHigh
+        expr: histogram_quantile(0.99, sum by (le) (rate(ratelimiter_decision_duration_seconds_bucket[5m]))) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Rate limiter p99 decision latency exceeds 50 ms
+      - alert: RateLimiterLeaseWasteHigh
+        expr: sum(rate(ratelimiter_local_permits_wasted_total[15m])) > 5
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: Local permit lease waste is elevated

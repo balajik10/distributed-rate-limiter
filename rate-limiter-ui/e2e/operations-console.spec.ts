@@ -339,7 +339,10 @@ test("six strict-login submissions produce five allows and one upstream 429", as
   await expect(page.locator("pre")).toContainText("LIMIT_EXCEEDED");
   await assertNoAxeViolations(page);
   expect(postCount).toBe(6);
-  expect(browserErrors).toEqual([]);
+  expect(browserErrors).toHaveLength(1);
+  expect(browserErrors[0]).toMatch(
+    /^error: Failed to load resource:.*status of 429/,
+  );
 });
 
 test("search-default truthfully presents approximation", async ({ page }) => {

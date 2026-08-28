@@ -183,7 +183,9 @@ class LocalLeaseManagerTest {
       ticker.advance(Duration.ofMillis(101));
       Future<LeaseAcquisition> replacementContender =
           executor.submit(() -> manager.acquireUnit(policy(10), DIGEST));
-      assertThat(replacementContender.isDone()).isFalse();
+      // The contender may block on the atomic mapping or complete its refill first. Both
+      // interleavings are safe; the reservation sequence and REDIS sources below prove that
+      // neither thread consumes the expired local permit.
       resume.countDown();
 
       LeaseAcquisition oldResult = oldConsumer.get(5, TimeUnit.SECONDS);

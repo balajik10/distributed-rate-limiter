@@ -6,6 +6,11 @@ import dev.ratelimiter.core.RateLimitDecision;
 import dev.ratelimiter.core.RateLimitRequest;
 import dev.ratelimiter.service.web.RequestIdFilter;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.headers.Header;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.time.Duration;
@@ -42,6 +47,80 @@ public class RateLimitController {
       summary = "Acquire rate-limit permits",
       description =
           "This operation is intentionally non-idempotent; do not blindly retry a timed-out check.")
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "Request allowed, including a possible degraded fail-open decision",
+        headers = {
+          @Header(name = "X-RateLimit-Limit", description = "Configured policy limit"),
+          @Header(name = "X-RateLimit-Remaining", description = "Known remaining permits"),
+          @Header(name = "X-RateLimit-Reset", description = "Reset time in epoch seconds"),
+          @Header(name = "X-RateLimit-Source", description = "Decision source"),
+          @Header(name = "X-Request-Id", description = "Request correlation identifier"),
+          @Header(name = "Cache-Control", description = "Decision responses are not cacheable")
+        },
+        content =
+            @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = RateLimitCheckResponse.class))),
+    @ApiResponse(
+        responseCode = "429",
+        description = "Quota denied by the selected policy",
+        headers = {
+          @Header(name = "X-RateLimit-Limit", description = "Configured policy limit"),
+          @Header(name = "X-RateLimit-Remaining", description = "Known remaining permits"),
+          @Header(name = "X-RateLimit-Reset", description = "Reset time in epoch seconds"),
+          @Header(name = "X-RateLimit-Source", description = "Decision source"),
+          @Header(name = "Retry-After", description = "Retry delay in whole seconds"),
+          @Header(name = "X-Request-Id", description = "Request correlation identifier"),
+          @Header(name = "Cache-Control", description = "Decision responses are not cacheable")
+        },
+        content =
+            @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = RateLimitCheckResponse.class))),
+    @ApiResponse(
+        responseCode = "503",
+        description = "Fail-closed policy blocked the request because Redis was unavailable",
+        headers = {
+          @Header(name = "X-RateLimit-Limit", description = "Configured policy limit"),
+          @Header(name = "X-RateLimit-Source", description = "Decision source"),
+          @Header(name = "Retry-After", description = "Retry delay when one is known"),
+          @Header(name = "X-Request-Id", description = "Request correlation identifier"),
+          @Header(name = "Cache-Control", description = "Decision responses are not cacheable")
+        },
+        content =
+            @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = RateLimitCheckResponse.class))),
+    @ApiResponse(
+        responseCode = "400",
+        description = "Invalid request",
+        content =
+            @Content(
+                mediaType = "application/problem+json",
+                schema = @Schema(implementation = org.springframework.http.ProblemDetail.class))),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Missing or invalid API key when authentication is enabled",
+        content = @Content(mediaType = "application/problem+json")),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Authenticated caller is not permitted",
+        content = @Content(mediaType = "application/problem+json")),
+    @ApiResponse(
+        responseCode = "404",
+        description = "Unknown policy",
+        content = @Content(mediaType = "application/problem+json")),
+    @ApiResponse(
+        responseCode = "413",
+        description = "Request body exceeds the service limit",
+        content = @Content(mediaType = "application/problem+json")),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Sanitized internal service failure",
+        content = @Content(mediaType = "application/problem+json"))
+  })
   public ResponseEntity<RateLimitCheckResponse> check(
       @Valid @RequestBody RateLimitCheckRequest request, HttpServletRequest servletRequest) {
     long startedAt = System.nanoTime();
@@ -51,7 +130,7 @@ public class RateLimitController {
     String requestId = RequestIdFilter.requestId(servletRequest);
     HttpStatus status = statusFor(decision);
 
-    HttpHeaders headers = headersFor(decision, requestId, status);
+    HttpHeaders headers = headersFor(decision, status);
     LOGGER.info(
         "rate_limit_decision requestId={} policy={} algorithm={} outcome={} source={}"
             + " durationMs={} errorCategory={}",
@@ -78,10 +157,9 @@ public class RateLimitController {
     throw new IllegalStateException("Unsupported denied decision");
   }
 
-  static HttpHeaders headersFor(RateLimitDecision decision, String requestId, HttpStatus status) {
+  static HttpHeaders headersFor(RateLimitDecision decision, HttpStatus status) {
     HttpHeaders headers = new HttpHeaders();
     headers.setCacheControl(CacheControl.noStore());
-    headers.set(RequestIdFilter.HEADER_NAME, requestId);
     headers.set(LIMIT_HEADER, Integer.toString(decision.limit()));
     headers.set(SOURCE_HEADER, decision.source().name());
     if (decision.remaining() >= 0) {

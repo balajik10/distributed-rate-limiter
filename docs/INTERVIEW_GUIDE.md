@@ -4,11 +4,13 @@ This guide presents the design as implemented. The central distinction to keep c
 
 ## 60-second pitch
 
-I built a Java 21 distributed rate limiter as a Maven multi-module project. The Spring-independent core exposes immutable request, decision, and policy types; a reusable Spring Boot starter supplies Redis, Caffeine, metrics, and health integration; and a Spring MVC service exposes the same limiter through a versioned HTTP API.
+I built a Java 21 distributed rate limiter as a Maven multi-module project. The Spring-independent core exposes immutable request, decision, and policy types; a reusable Spring Boot starter supplies Redis, Caffeine, metrics, and health integration; and a Spring MVC service exposes the same limiter through a versioned HTTP API. A strict-TypeScript React Operations Console consumes generated OpenAPI types and demonstrates the real system through a hardened same-origin Nginx proxy.
 
 Each trusted YAML policy selects token bucket, exact sliding-window log, or approximate sliding-window counter behavior. A handwritten Lua script performs the complete read, time calculation, decision, reservation, update, and expiry atomically on Redis. Scripts use Redis server time and retain a last-seen timestamp, so application-node clock skew cannot create quota. Logical keys are represented only by versioned SHA-256 or HMAC-SHA-256 digests and Redis Cluster hash tags.
 
 For hot unit-permit traffic, the optional Caffeine tier uses charge-ahead leasing: Redis charges a batch first, the triggering request consumes one permit, and the JVM may spend the short remaining tail locally. With `M` live lease holders and maximum batch `B`, cache timing error is bounded by `M(B-1)` while uncharged normal admissions remain zero. Redis outage behavior is selected per policy: availability-oriented APIs can fail open, while login and other abuse-sensitive operations fail closed.
+
+The console does not create a second source of truth. It reads trusted policy metadata, sends exactly one non-retried acquisition per explicit action, keeps sanitized history only in the tab, and distinguishes expected `429` quota denial, degraded fail-open, fail-closed `503`, and an ambiguous gateway/network outcome. Grafana remains the server-wide monitoring view; browser statistics are labeled current-session client observations.
 
 ## Five-minute explanation
 
@@ -50,7 +52,9 @@ The operation is intentionally non-idempotent. `NOSCRIPT` is a definite non-exec
 
 ```mermaid
 flowchart LR
-  H[HTTP caller] --> MVC[Spring MVC service]
+  W[Browser] --> UI[React / unprivileged Nginx]
+  UI --> MVC[Spring MVC service]
+  H[HTTP caller] --> MVC
   J[Embedded Java caller] --> API[DistributedRateLimiter]
   MVC --> API
   API --> P[Trusted policy registry]
@@ -65,6 +69,8 @@ flowchart LR
 ```
 
 The deployment scales application instances horizontally, but a single logical subject always maps to one Redis Cluster slot and one primary. That is what preserves a global order for the subject—and what creates the honest hot-key ceiling.
+
+The UI container joins a frontend network with the app but never Redis's backend network. Nginx dynamically resolves `app`, preserves upstream decision bodies/headers/status, and has retries and error interception disabled. CORS remains off because browser API calls are relative and same-origin. The console is local/demo tooling; a public deployment would require HTTPS plus real user authentication and authorization.
 
 ## Low-level design
 

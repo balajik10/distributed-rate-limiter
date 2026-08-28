@@ -31,7 +31,7 @@ services:
       SERVER_PORT: "8080"
     ports:
       - "127.0.0.1:${APP_PORT:-8080}:8080"
-    networks: [backend, host-access]
+    networks: [backend, host-access, frontend]
     depends_on:
       redis:
         condition: service_healthy
@@ -42,6 +42,33 @@ services:
       retries: 20
       start_period: 20s
     stop_grace_period: 20s
+    restart: unless-stopped
+
+  ui:
+    build:
+      context: ./rate-limiter-ui
+      dockerfile: Dockerfile
+      args:
+        VITE_APP_PUBLIC_PORT: "${APP_PORT:-8080}"
+        VITE_GRAFANA_PUBLIC_PORT: "${GRAFANA_PORT:-3000}"
+        VITE_PROMETHEUS_PUBLIC_PORT: "${PROMETHEUS_PORT:-9090}"
+    ports:
+      - "127.0.0.1:${UI_HOST_PORT:-3001}:8080"
+    networks: [frontend]
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+      - /var/cache/nginx:size=16m,uid=101,gid=101,mode=0750
+      - /var/run:size=1m,uid=101,gid=101,mode=0750
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped
 
   prometheus:
@@ -99,6 +126,7 @@ networks:
   backend:
     internal: true
   host-access:
+  frontend:
 
 volumes:
   redis-data:

@@ -16,7 +16,7 @@ SCENARIO=mixed-80-20 POLICY_ID=benchmark-token-leased RPS=1000 VUS=100 DURATION=
 SCENARIO=algorithms POLICY_ID=benchmark-token-strict RPS=300 VUS=50 DURATION=60s KEY_CARDINALITY=100 ./scripts/benchmark.sh
 ```
 
-Supported environment inputs are `BASE_URL`, `POLICY_ID`, `KEY_CARDINALITY`, `RPS`, `VUS`, `DURATION`, `SCENARIO`, and `API_KEY`. For `mixed-80-20`, cardinality includes one hot key and therefore must be at least two; the remaining slots form the independently indexed cold-key pool. GitHub's manual workflow exposes only allowlisted scenarios/policies and repeats numeric validation.
+Supported environment inputs are `BASE_URL`, `POLICY_ID`, `KEY_CARDINALITY`, `RPS`, `VUS`, `DURATION`, `SCENARIO`, and `API_KEY`. Leave `BASE_URL` unset for the local Compose stack: the script then joins k6 to the app's Compose network and calls `http://app:8080`. A supplied `BASE_URL` must be reachable from inside the k6 container, so host-loopback URLs such as `http://127.0.0.1:8080` do not identify the host application. For `mixed-80-20`, cardinality includes one hot key and therefore must be at least two; the remaining slots form the independently indexed cold-key pool. GitHub's manual workflow exposes only allowlisted scenarios/policies and repeats numeric validation.
 
 ## Reported measurements
 

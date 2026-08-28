@@ -90,6 +90,10 @@ class RateLimitApiWebTest {
                 .content("{\"policyId\":\"api-standard\",\"key\":\"user:123\"}"))
         .andExpect(status().isOk())
         .andExpect(header().string(RequestIdFilter.HEADER_NAME, "trace-123"))
+        .andExpect(
+            result ->
+                assertThat(result.getResponse().getHeaders(RequestIdFilter.HEADER_NAME))
+                    .containsExactly("trace-123"))
         .andExpect(header().string(RateLimitController.LIMIT_HEADER, "100"))
         .andExpect(header().string(RateLimitController.REMAINING_HEADER, "93"))
         .andExpect(header().string(RateLimitController.RESET_HEADER, "1893456000"))

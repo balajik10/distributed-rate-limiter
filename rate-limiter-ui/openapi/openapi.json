@@ -1,0 +1,464 @@
+{
+  "components": {
+    "schemas": {
+      "LocalCacheView": {
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "expectedMaxInstances": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "maxErrorPermits": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "maxLeaseSize": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "maxLeaseTtlMs": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PolicyView": {
+        "properties": {
+          "algorithm": {
+            "enum": [
+              "TOKEN_BUCKET",
+              "SLIDING_WINDOW_LOG",
+              "SLIDING_WINDOW_COUNTER"
+            ],
+            "type": "string"
+          },
+          "failureMode": {
+            "enum": [
+              "FAIL_OPEN",
+              "FAIL_CLOSED"
+            ],
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "limit": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "localCache": {
+            "$ref": "#/components/schemas/LocalCacheView"
+          },
+          "slidingWindow": {
+            "$ref": "#/components/schemas/SlidingWindowView"
+          },
+          "tokenBucket": {
+            "$ref": "#/components/schemas/TokenBucketView"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "ProblemDetail": {
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "instance": {
+            "format": "uri",
+            "type": "string"
+          },
+          "properties": {
+            "additionalProperties": {},
+            "type": "object"
+          },
+          "status": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "RateLimitCheckRequest": {
+        "properties": {
+          "key": {
+            "maxLength": 256,
+            "minLength": 0,
+            "type": "string"
+          },
+          "permits": {
+            "format": "int32",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "policyId": {
+            "maxLength": 64,
+            "minLength": 0,
+            "pattern": "[a-z0-9][a-z0-9._-]{0,63}",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "policyId"
+        ],
+        "type": "object"
+      },
+      "RateLimitCheckResponse": {
+        "properties": {
+          "algorithm": {
+            "enum": [
+              "TOKEN_BUCKET",
+              "SLIDING_WINDOW_LOG",
+              "SLIDING_WINDOW_COUNTER"
+            ],
+            "type": "string"
+          },
+          "allowed": {
+            "type": "boolean"
+          },
+          "approximate": {
+            "type": "boolean"
+          },
+          "degraded": {
+            "type": "boolean"
+          },
+          "grantedPermits": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "limit": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "policyId": {
+            "type": "string"
+          },
+          "policyVersion": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "reason": {
+            "enum": [
+              "ALLOWED",
+              "LIMIT_EXCEEDED",
+              "BACKEND_UNAVAILABLE_FAIL_OPEN",
+              "BACKEND_UNAVAILABLE_FAIL_CLOSED"
+            ],
+            "type": "string"
+          },
+          "remaining": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "resetAtEpochMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "retryAfterMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "source": {
+            "enum": [
+              "REDIS",
+              "LOCAL_LEASE",
+              "FAIL_OPEN",
+              "FAIL_CLOSED"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "SlidingWindowView": {
+        "properties": {
+          "limit": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "windowMs": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "TokenBucketView": {
+        "properties": {
+          "capacity": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "refillPeriodMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "refillTokens": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "apiKey": {
+        "in": "header",
+        "name": "X-API-Key",
+        "type": "apiKey"
+      }
+    }
+  },
+  "info": {
+    "description": "Non-idempotent rate-limit checks backed by trusted server-defined policies.",
+    "title": "Distributed Rate Limiter API",
+    "version": "v1"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/policies": {
+      "get": {
+        "operationId": "list",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PolicyView"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "policy-controller"
+        ]
+      }
+    },
+    "/api/v1/policies/{policyId}": {
+      "get": {
+        "operationId": "get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "policyId",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "[a-z0-9][a-z0-9._-]{0,63}",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "policy-controller"
+        ]
+      }
+    },
+    "/api/v1/rate-limits/check": {
+      "post": {
+        "description": "This operation is intentionally non-idempotent; do not blindly retry a timed-out check.",
+        "operationId": "check",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RateLimitCheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimitCheckResponse"
+                }
+              }
+            },
+            "description": "Request allowed, including a possible degraded fail-open decision",
+            "headers": {
+              "Cache-Control": {
+                "description": "Decision responses are not cacheable",
+                "style": "simple"
+              },
+              "X-RateLimit-Limit": {
+                "description": "Configured policy limit",
+                "style": "simple"
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Known remaining permits",
+                "style": "simple"
+              },
+              "X-RateLimit-Reset": {
+                "description": "Reset time in epoch seconds",
+                "style": "simple"
+              },
+              "X-RateLimit-Source": {
+                "description": "Decision source",
+                "style": "simple"
+              },
+              "X-Request-Id": {
+                "description": "Request correlation identifier",
+                "style": "simple"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {}
+            },
+            "description": "Missing or invalid API key when authentication is enabled"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {}
+            },
+            "description": "Authenticated caller is not permitted"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {}
+            },
+            "description": "Unknown policy"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {}
+            },
+            "description": "Request body exceeds the service limit"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimitCheckResponse"
+                }
+              }
+            },
+            "description": "Quota denied by the selected policy",
+            "headers": {
+              "Cache-Control": {
+                "description": "Decision responses are not cacheable",
+                "style": "simple"
+              },
+              "Retry-After": {
+                "description": "Retry delay in whole seconds",
+                "style": "simple"
+              },
+              "X-RateLimit-Limit": {
+                "description": "Configured policy limit",
+                "style": "simple"
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Known remaining permits",
+                "style": "simple"
+              },
+              "X-RateLimit-Reset": {
+                "description": "Reset time in epoch seconds",
+                "style": "simple"
+              },
+              "X-RateLimit-Source": {
+                "description": "Decision source",
+                "style": "simple"
+              },
+              "X-Request-Id": {
+                "description": "Request correlation identifier",
+                "style": "simple"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {}
+            },
+            "description": "Sanitized internal service failure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimitCheckResponse"
+                }
+              }
+            },
+            "description": "Fail-closed policy blocked the request because Redis was unavailable",
+            "headers": {
+              "Cache-Control": {
+                "description": "Decision responses are not cacheable",
+                "style": "simple"
+              },
+              "Retry-After": {
+                "description": "Retry delay when one is known",
+                "style": "simple"
+              },
+              "X-RateLimit-Limit": {
+                "description": "Configured policy limit",
+                "style": "simple"
+              },
+              "X-RateLimit-Source": {
+                "description": "Decision source",
+                "style": "simple"
+              },
+              "X-Request-Id": {
+                "description": "Request correlation identifier",
+                "style": "simple"
+              }
+            }
+          }
+        },
+        "summary": "Acquire rate-limit permits",
+        "tags": [
+          "rate-limit-controller"
+        ]
+      }
+    }
+  }
+}

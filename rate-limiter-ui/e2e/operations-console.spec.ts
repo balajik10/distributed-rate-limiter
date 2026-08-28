@@ -379,9 +379,17 @@ test("bounded traffic schedules exactly the requested count and Stop prevents ne
   await page.getByLabel("Target rate", { exact: true }).fill("5");
   await page.getByRole("button", { name: "Fresh key" }).last().click();
   await page.getByRole("button", { name: "Start bounded run" }).click();
+  await expect(page.getByText("Running", { exact: true })).toBeVisible();
   await expect(metric("Scheduled")).not.toHaveText("0", { timeout: 3_000 });
-  await page.getByRole("button", { name: "Stop run" }).click();
+  const stopButton = page.getByRole("button", { name: "Stop run" });
+  await stopButton.click();
+  await expect(stopButton).toBeHidden();
+  await expect(
+    page.locator(".status-badge").filter({ hasText: /Stopping|Stopped/ }),
+  ).toBeVisible();
   const scheduledAfterStop = await metric("Scheduled").textContent();
+  expect(Number(scheduledAfterStop)).toBeGreaterThan(0);
+  expect(Number(scheduledAfterStop)).toBeLessThan(20);
   await page.waitForTimeout(1_200);
   await expect(metric("Scheduled")).toHaveText(scheduledAfterStop ?? "");
 });

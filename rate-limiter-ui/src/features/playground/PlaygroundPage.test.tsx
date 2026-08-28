@@ -21,6 +21,11 @@ describe("PlaygroundPage", () => {
     });
 
     expect(screen.getByLabelText("Loading policies")).toBeVisible();
+    expect(screen.getByRole("tabpanel")).toHaveAttribute("id", "single-panel");
+    expect(screen.getByRole("tab", { name: "Single check" })).toHaveAttribute(
+      "aria-controls",
+      "single-panel",
+    );
     expect(
       await screen.findByRole("heading", { name: "Acquire permits" }),
     ).toBeVisible();
@@ -53,6 +58,7 @@ describe("PlaygroundPage", () => {
     await user.keyboard("{Enter}");
 
     expect(trafficTab).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tabpanel")).toHaveAttribute("id", "traffic-panel");
     expect(
       screen.getByRole("heading", { name: "Demo Traffic Lab" }),
     ).toBeVisible();

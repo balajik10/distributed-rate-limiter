@@ -32,6 +32,9 @@ describe("SystemPage", () => {
       "http://localhost:9090/",
     );
     expect(screen.getByText(/browser cannot stop containers/i)).toBeVisible();
+    expect(
+      screen.getByText(/COMPOSE_PROJECT_NAME/).closest("pre"),
+    ).toHaveAttribute("tabindex", "0");
 
     await userEvent.click(
       screen.getByRole("button", { name: "Copy commands" }),

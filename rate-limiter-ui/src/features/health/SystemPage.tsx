@@ -184,7 +184,7 @@ export function SystemPage() {
           </ul>
         </div>
         <div className="command-block">
-          <pre>
+          <pre tabIndex={0}>
             <code>{outageCommand}</code>
           </pre>
           <button

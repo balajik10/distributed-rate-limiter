@@ -21,6 +21,58 @@ export function PlaygroundPage() {
   const { apiKey, apiKeyRevision } = useSession();
   const policies = usePolicies(apiKey, apiKeyRevision);
 
+  const renderPanelContent = (mode: "single" | "traffic") => (
+    <>
+      {policies.isPending ? (
+        <div
+          className="loading-panel"
+          role="status"
+          aria-label="Loading policies"
+        >
+          <span className="skeleton-line" />
+          <span className="skeleton-line" />
+          <span className="skeleton-line short" />
+        </div>
+      ) : null}
+      {policies.isError ? (
+        <section className="panel inline-error">
+          <div>
+            <strong>Policies could not be loaded.</strong>
+            <p>
+              Check the service connection or session API key, then explicitly
+              retry this safe GET.
+            </p>
+          </div>
+          <button
+            className="button secondary"
+            type="button"
+            onClick={() => void policies.refetch()}
+          >
+            Retry safe GET
+          </button>
+        </section>
+      ) : null}
+      {policies.data?.length === 0 ? (
+        <EmptyState
+          title="No policies available"
+          description="The trusted server configuration returned an empty list."
+        />
+      ) : null}
+      {policies.data?.length && mode === "single" ? (
+        <SingleCheck
+          policies={policies.data}
+          {...(routeState?.policyId
+            ? { initialPolicyId: routeState.policyId }
+            : {})}
+          onUnknownPolicy={() => policies.refetch()}
+        />
+      ) : null}
+      {policies.data?.length && mode === "traffic" ? (
+        <TrafficLab policies={policies.data} />
+      ) : null}
+    </>
+  );
+
   return (
     <div className="page-stack">
       <PageHeader
@@ -67,56 +119,22 @@ export function PlaygroundPage() {
           Demo Traffic Lab
         </button>
       </div>
-      {policies.isPending ? (
-        <div className="loading-panel" aria-label="Loading policies">
-          <span className="skeleton-line" />
-          <span className="skeleton-line" />
-          <span className="skeleton-line short" />
-        </div>
-      ) : null}
-      {policies.isError ? (
-        <section className="panel inline-error">
-          <div>
-            <strong>Policies could not be loaded.</strong>
-            <p>
-              Check the service connection or session API key, then explicitly
-              retry this safe GET.
-            </p>
-          </div>
-          <button
-            className="button secondary"
-            type="button"
-            onClick={() => void policies.refetch()}
-          >
-            Retry safe GET
-          </button>
-        </section>
-      ) : null}
-      {policies.data?.length === 0 ? (
-        <EmptyState
-          title="No policies available"
-          description="The trusted server configuration returned an empty list."
-        />
-      ) : null}
-      {policies.data?.length ? (
-        <div
-          role="tabpanel"
-          id={tab === "single" ? "single-panel" : "traffic-panel"}
-          aria-labelledby={tab === "single" ? "single-tab" : "traffic-tab"}
-        >
-          {tab === "single" ? (
-            <SingleCheck
-              policies={policies.data}
-              {...(routeState?.policyId
-                ? { initialPolicyId: routeState.policyId }
-                : {})}
-              onUnknownPolicy={() => policies.refetch()}
-            />
-          ) : (
-            <TrafficLab policies={policies.data} />
-          )}
-        </div>
-      ) : null}
+      <div
+        role="tabpanel"
+        id="single-panel"
+        aria-labelledby="single-tab"
+        hidden={tab !== "single"}
+      >
+        {tab === "single" ? renderPanelContent("single") : null}
+      </div>
+      <div
+        role="tabpanel"
+        id="traffic-panel"
+        aria-labelledby="traffic-tab"
+        hidden={tab !== "traffic"}
+      >
+        {tab === "traffic" ? renderPanelContent("traffic") : null}
+      </div>
     </div>
   );
 }

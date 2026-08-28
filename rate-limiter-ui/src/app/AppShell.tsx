@@ -99,7 +99,11 @@ function CredentialControl() {
         <KeyRound aria-hidden="true" size={18} />
         <span className="desktop-only">Session key</span>
         {apiKey ? (
-          <span className="credential-dot" aria-label="API key is set" />
+          <span
+            className="credential-dot"
+            role="status"
+            aria-label="API key is set"
+          />
         ) : null}
       </summary>
       <form

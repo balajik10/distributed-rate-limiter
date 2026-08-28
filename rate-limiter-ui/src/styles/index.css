@@ -12,8 +12,10 @@
   --dim: #8090aa;
   --accent: #22d3ee;
   --accent-strong: #06b6d4;
+  --on-accent: #04141a;
   --allowed: #34d399;
   --denied: #fb7185;
+  --on-denied: #2a0711;
   --degraded: #fbbf24;
   --violet: #a78bfa;
   --shadow: 0 18px 45px rgb(0 0 0 / 22%);
@@ -29,11 +31,13 @@
   --text: #14213a;
   --muted: #526078;
   --dim: #596981;
-  --accent: #087e8b;
-  --accent-strong: #066b76;
+  --accent: #066b76;
+  --accent-strong: #055a64;
+  --on-accent: #ffffff;
   --allowed: #047857;
   --denied: #be123c;
-  --degraded: #a16207;
+  --on-denied: #ffffff;
+  --degraded: #854d0e;
   --violet: #6d28d9;
   --shadow: 0 18px 45px rgb(31 42 68 / 10%);
 }
@@ -204,7 +208,7 @@ td code {
   z-index: 100;
   border-radius: 8px;
   background: var(--accent);
-  color: #04141a;
+  color: var(--on-accent);
   padding: 10px 16px;
   font-weight: 800;
 }
@@ -555,7 +559,7 @@ footer {
 }
 .button.primary {
   background: var(--accent);
-  color: #05202a;
+  color: var(--on-accent);
 }
 .button.secondary {
   border-color: var(--border);
@@ -569,7 +573,7 @@ footer {
 }
 .button.danger {
   background: var(--denied);
-  color: #fff;
+  color: var(--on-denied);
 }
 .button.small {
   min-height: 36px;
@@ -589,32 +593,32 @@ footer {
   letter-spacing: 0.025em;
   white-space: nowrap;
 }
-.status-success {
+.status-badge.status-success {
   border-color: color-mix(in srgb, var(--allowed) 36%, transparent);
   background: color-mix(in srgb, var(--allowed) 11%, transparent);
   color: var(--allowed);
 }
-.status-danger {
+.status-badge.status-danger {
   border-color: color-mix(in srgb, var(--denied) 36%, transparent);
   background: color-mix(in srgb, var(--denied) 11%, transparent);
   color: var(--denied);
 }
-.status-warning {
+.status-badge.status-warning {
   border-color: color-mix(in srgb, var(--degraded) 36%, transparent);
   background: color-mix(in srgb, var(--degraded) 11%, transparent);
   color: var(--degraded);
 }
-.status-info {
+.status-badge.status-info {
   border-color: color-mix(in srgb, var(--accent) 36%, transparent);
   background: color-mix(in srgb, var(--accent) 11%, transparent);
   color: var(--accent);
 }
-.status-neutral {
+.status-badge.status-neutral {
   border-color: var(--border);
   background: var(--raised);
   color: var(--muted);
 }
-.status-violet {
+.status-badge.status-violet {
   border-color: color-mix(in srgb, var(--violet) 36%, transparent);
   background: color-mix(in srgb, var(--violet) 11%, transparent);
   color: var(--violet);
@@ -1357,7 +1361,7 @@ fieldset legend {
 .probe-card div {
   display: grid;
 }
-.probe-card span {
+.probe-card > div > span {
   color: var(--dim);
   font-size: 0.7rem;
 }

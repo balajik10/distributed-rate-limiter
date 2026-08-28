@@ -286,6 +286,7 @@ export function OverviewPage() {
           </div>
           <div
             className="source-summary"
+            role="group"
             aria-label="Decision source distribution"
           >
             {Object.entries(sourceCounts).map(([source, count]) => (
@@ -353,7 +354,11 @@ export function OverviewPage() {
           </Link>
         </div>
         {policies.isPending ? (
-          <div className="skeleton-grid" aria-label="Loading policies">
+          <div
+            className="skeleton-grid"
+            role="status"
+            aria-label="Loading policies"
+          >
             <span />
             <span />
             <span />

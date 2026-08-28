@@ -226,19 +226,23 @@ test("responsive layouts, keyboard navigation, and axe checks pass", async ({
 
   const auditedRoutes = [
     "/console",
+    "/console/playground",
     "/console/policies",
     "/console/system",
     "/console/architecture",
   ];
   for (const route of auditedRoutes) {
     await page.goto(route);
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await assertNoAxeViolations(page);
   }
 
   await page.goto("/console");
   await page.getByRole("button", { name: "Use light theme" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   for (const route of auditedRoutes) {
     await page.goto(route);
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await assertNoAxeViolations(page);
   }
   expect(browserErrors).toEqual([]);

@@ -92,7 +92,11 @@ export function PoliciesPage() {
       </section>
 
       {policies.isPending ? (
-        <div className="skeleton-grid" aria-label="Loading policies">
+        <div
+          className="skeleton-grid"
+          role="status"
+          aria-label="Loading policies"
+        >
           <span />
           <span />
           <span />

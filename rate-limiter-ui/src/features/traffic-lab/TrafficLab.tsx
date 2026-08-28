@@ -159,7 +159,7 @@ export function TrafficLab({ policies }: { policies: Policy[] }) {
           browser demonstration, not a performance benchmark. Use the k6 harness
           for load testing.
         </p>
-        <div className="preset-row" aria-label="Traffic presets">
+        <div className="preset-row" role="group" aria-label="Traffic presets">
           {Object.keys(presets).map((name) => (
             <button
               className="chip-button"

@@ -4,21 +4,36 @@
 
 ```bash
 export COMPOSE_PROJECT_NAME="rate-limiter-ops-$(date +%s)"
-docker compose up --build -d
+docker compose --profile observability up --build -d
+curl --fail http://localhost:3001/healthz
 curl --fail http://localhost:8080/actuator/health/liveness
 curl --fail http://localhost:8080/actuator/health/readiness
-docker compose ps
-docker compose logs --since=10m app redis
-docker compose --profile observability down -v --remove-orphans
+curl --fail http://localhost:3001/api/v1/policies | jq
+docker compose --profile observability ps
+docker compose logs --since=10m ui app redis
+docker compose --profile observability down --remove-orphans
 ```
 
-The default app health check is liveness, intentionally not readiness, so an orchestrator does not restart a useful fail-open process merely because Redis is down. Readiness includes backend health and should control traffic routing. Do not treat a healthy liveness endpoint as proof that global quotas are enforced.
+The default app health check is liveness, intentionally not readiness, so an orchestrator does not restart a useful fail-open process merely because Redis is down. Readiness includes backend health and should control traffic routing. UI `/healthz` checks static Nginx only, so the console remains available to explain an app/Redis outage. Do not treat either liveness or UI health as proof that global quotas are enforced.
+
+The default profile includes Redis, app, and UI. `--profile observability` adds Prometheus and Grafana. Stop without `-v` to preserve data; add `-v` only after verifying the exact Compose project when intentional volume deletion is safe. Use `APP_PORT`, `UI_HOST_PORT`, `REDIS_PORT`, `PROMETHEUS_PORT`, and `GRAFANA_PORT` for an isolated local stack instead of killing unrelated port owners.
 
 Production requires `RATE_LIMITER_API_KEY` and `RATE_LIMITER_KEY_HASH_SECRET`; obtain both from a secret manager, not an image, repository, shell history, or ConfigMap. Configure Redis ACL credentials and TLS on private networking. Keep `maxmemory-policy noeviction`, choose persistence/replication/backup recovery objectives, and place a coarse ingress limit ahead of this service.
 
 ## Signals and suggested alerts
 
-The dashboard at `http://localhost:3000` covers throughput, allowed/denied/degraded outcomes, p50/p95/p99 decision latency, Redis script p99, errors, calls per decision, cache hit ratio, lease reservations, permit waste, and fallbacks.
+The dashboard at `http://localhost:3000/d/distributed-rate-limiter/distributed-rate-limiter` covers throughput, allowed/denied/degraded outcomes, p50/p95/p99 decision latency, Redis script p99, errors, calls per decision, cache hit ratio, lease reservations, permit waste, and fallbacks. The Operations Console at `http://localhost:3001/console` shows only current-browser decisions and client latency; do not compare those as though they were the same aggregation.
+
+## Console or proxy failure
+
+1. Check `http://localhost:3001/healthz`. A failure means the UI container/Nginx is unavailable; inspect `docker compose logs ui` and `docker compose ps ui`.
+2. If UI health is up but the console reports offline, check Spring liveness/readiness directly on the configured `APP_PORT`.
+3. Request `http://localhost:3001/api/v1/policies`. A JSON response proves the same-origin proxy and frontend network path; an Nginx `502` with UI health still up means the app is absent/unreachable.
+4. Verify the browser calls relative `/api/**`, not `app:8080`, and that the UI is attached only to the `frontend` network. Do not enable wildcard CORS as a repair.
+5. Confirm `429` and fail-closed `503` keep their JSON bodies and headers. Do not enable Nginx retry/interception or SPA fallback for API paths.
+6. If external-tool links use the wrong ports, rebuild UI after setting the public Compose port overrides; they are non-secret compile-time settings.
+
+The UI container is read-only, non-root, and uses small temporary filesystems for Nginx runtime state. Permissions errors usually mean those Compose mounts/security settings were altered; do not restore operation by running it as root or adding capabilities.
 
 Useful PromQL:
 

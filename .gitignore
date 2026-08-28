@@ -27,3 +27,11 @@ application-local.yml
 *.jfr
 *.hprof
 jacoco.exec
+
+# Frontend dependencies and generated verification output
+rate-limiter-ui/node_modules/
+rate-limiter-ui/dist/
+rate-limiter-ui/coverage/
+rate-limiter-ui/playwright-report/
+rate-limiter-ui/blob-report/
+rate-limiter-ui/test-results/

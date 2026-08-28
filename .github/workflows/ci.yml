@@ -63,6 +63,9 @@ jobs:
       - name: Check runtime user and OpenAPI
         run: |
           docker compose exec -T app sh -c 'test "$(id -u)" != "0"'
+          docker compose exec -T ui sh -c 'test "$(id -u)" != "0"'
+          curl --fail --silent http://localhost:3001/healthz | grep -Fx ok
+          curl --fail --silent http://localhost:3001/console | grep -qi '<!doctype html>'
           curl --fail --silent http://localhost:8080/v3/api-docs | jq -e '.paths["/api/v1/rate-limits/check"]' >/dev/null
       - name: Capture Compose logs on failure
         if: failure()
@@ -86,3 +89,84 @@ jobs:
       - name: Tear down task-owned stack
         if: always()
         run: docker compose --profile observability down -v --remove-orphans
+
+  frontend-quality:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: rate-limiter-ui
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: rate-limiter-ui/.nvmrc
+          cache: npm
+          cache-dependency-path: rate-limiter-ui/package-lock.json
+      - name: Install locked frontend dependencies
+        run: npm ci
+      - name: Check frontend formatting
+        run: npm run format:check
+      - name: Lint frontend
+        run: npm run lint
+      - name: Type-check frontend
+        run: npm run typecheck
+      - name: Run frontend tests and coverage gates
+        run: npm run test:coverage
+      - name: Build production frontend
+        run: npm run build
+      - name: Check generated OpenAPI types
+        run: npm run api:check
+      - name: Upload frontend coverage
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: frontend-coverage-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: rate-limiter-ui/coverage/**
+
+  real-stack-e2e:
+    needs: [verify, frontend-quality]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      COMPOSE_PROJECT_NAME: rate-limiter-e2e-${{ github.run_id }}-${{ github.run_attempt }}
+      REDIS_PORT: "16379"
+      APP_PORT: "18080"
+      UI_HOST_PORT: "13001"
+      PROMETHEUS_PORT: "19090"
+      GRAFANA_PORT: "13000"
+      BASE_URL: http://127.0.0.1:18080
+      OPENAPI_BASE_URL: http://127.0.0.1:18080
+      UI_BASE_URL: http://127.0.0.1:13001
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: rate-limiter-ui/.nvmrc
+          cache: npm
+          cache-dependency-path: rate-limiter-ui/package-lock.json
+      - name: Install locked frontend dependencies
+        working-directory: rate-limiter-ui
+        run: npm ci
+      - name: Install pinned Playwright Chromium
+        working-directory: rate-limiter-ui
+        run: npx playwright install --with-deps chromium
+      - name: Run isolated real-stack browser verification
+        run: ./scripts/ui-e2e.sh
+      - name: Upload sanitized browser and Compose failure evidence
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: real-stack-e2e-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            rate-limiter-ui/playwright-report/**
+            rate-limiter-ui/test-results/**/*.png
+            build/results/compose-ui-e2e.log

@@ -1,6 +1,13 @@
 # Distributed Rate Limiter
 
-Distributed Rate Limiter is a Java 21 library, reusable Spring Boot starter, and standalone HTTP service for enforcing per-policy, per-subject quotas across application instances. Redis Lua scripts own the linearizable read–decide–reserve transition; Redis server time removes application-clock skew from distributed decisions; and an optional Caffeine charge-ahead tier reduces hot-key Redis traffic without write-behind or uncharged normal admissions.
+[![CI](https://github.com/balajik10/distributed-rate-limiter/actions/workflows/ci.yml/badge.svg)](https://github.com/balajik10/distributed-rate-limiter/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/balajik10/distributed-rate-limiter)](LICENSE)
+
+Distributed Rate Limiter is a Java 21 library, reusable Spring Boot starter, standalone HTTP service, and typed React operations console for enforcing and demonstrating per-policy, per-subject quotas across application instances. Redis Lua scripts own the linearizable read–decide–reserve transition; Redis server time removes application-clock skew from distributed decisions; and an optional Caffeine charge-ahead tier reduces hot-key Redis traffic without write-behind or uncharged normal admissions.
+
+The Operations Console is a local developer, interview, and operations aid. It reads real policies, sends real non-idempotent acquisitions through a same-origin Nginx proxy, explains every outcome, and keeps decision history only in the current browser tab.
+
+![Distributed Rate Limiter Operations Console](docs/images/operations-console-overview.png)
 
 ## Features
 
@@ -10,23 +17,52 @@ Distributed Rate Limiter is a Java 21 library, reusable Spring Boot starter, and
 - Spring Boot auto-configuration, trusted YAML policies, Redis/Lettuce, Caffeine leases, Micrometer, and backend health in `rate-limiter-spring-boot-starter`.
 - Synchronous Spring MVC service with stable status/header behavior, RFC 9457 errors, OpenAPI, API-key authentication, request correlation, and no raw logical key exposure.
 - Per-policy `FAIL_OPEN` or `FAIL_CLOSED` behavior, including startup and operation while Redis is unavailable.
-- Docker Compose demo, Prometheus/Grafana profile, deterministic failure demo, k6 harness, Testcontainers tests, SBOM generation, and GitHub Actions.
+- React, strict TypeScript, Vite, and Tailwind Operations Console with Overview, Playground, Policies, System, and Architecture views.
+- Safe bounded Demo Traffic Lab, truthful `200`/`429`/`503`/ambiguous-outcome handling, and zero automatic retry of permit-consuming requests.
+- Hardened unprivileged Nginx with same-origin API proxying; Spring CORS remains disabled.
+- Docker Compose demo, Prometheus/Grafana profile, deterministic failure demo, k6 harness, Testcontainers and browser tests, SBOM generation, and GitHub Actions.
 
-## Prerequisites and quick start
+## Prerequisites and one-command start
 
-The Docker path needs Docker Engine/Desktop 24+ with Compose v2. Host scripts need Bash, `curl`, and `jq`. A host Maven build needs a Java 21 JDK; Maven itself is supplied by the 3.9.9 wrapper.
+The Docker path needs Docker Engine/Desktop 24+ with Compose v2. Host scripts need Bash, `curl`, and `jq`. A host Maven build needs a Java 21 JDK; Maven itself is supplied by the 3.9.9 wrapper. Frontend development needs Node 24.20.0 and npm.
 
 ```bash
-export COMPOSE_PROJECT_NAME="rate-limiter-${USER:-local}-$(date +%s)"
-docker compose up --build -d
+docker compose --profile observability up --build -d
+docker compose --profile observability ps
 curl --fail http://localhost:8080/actuator/health/readiness
+curl --fail http://localhost:3001/healthz
 ```
 
-The demo profile deliberately starts without an `.env` file. Redis is reachable only on `127.0.0.1:6379`; the service is at [http://localhost:8080](http://localhost:8080). Stop only this scoped stack with:
+The local demo deliberately starts without an `.env` file. Open the console at [http://localhost:3001/console](http://localhost:3001/console). The default profile starts Redis, the Spring app, and the UI; the command above also enables Prometheus and Grafana.
+
+| Local endpoint | URL | What it is |
+|---|---|---|
+| Operations Console | [http://localhost:3001/console](http://localhost:3001/console) | Real browser UI through Nginx |
+| UI health | [http://localhost:3001/healthz](http://localhost:3001/healthz) | Static server health, independent of Spring |
+| Spring API | [http://localhost:8080](http://localhost:8080) | Direct backend origin for tools and clients |
+| Swagger UI | [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html) | Interactive API contract in the demo profile |
+| OpenAPI | [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs) | Live OpenAPI JSON |
+| Readiness | [http://localhost:8080/actuator/health/readiness](http://localhost:8080/actuator/health/readiness) | Aggregate backend readiness |
+| Prometheus | [http://localhost:9090](http://localhost:9090) | Metrics and PromQL |
+| Grafana | [http://localhost:3000/d/distributed-rate-limiter/distributed-rate-limiter](http://localhost:3000/d/distributed-rate-limiter/distributed-rate-limiter) | Provisioned dashboard |
+
+Stop only this scoped stack while preserving its data volumes:
 
 ```bash
-docker compose --profile observability down -v --remove-orphans
+docker compose --profile observability down --remove-orphans
 ```
+
+Add `-v` only when you intentionally want to delete this Compose project's Redis, Prometheus, and Grafana data. Host ports are independently overridable with `REDIS_PORT`, `APP_PORT`, `UI_HOST_PORT`, `PROMETHEUS_PORT`, and `GRAFANA_PORT`; Compose builds browser-visible external links from those public port values.
+
+## Two-minute demo
+
+1. Open **Overview** and confirm the truthful liveness/readiness state and real policy snapshot.
+2. In **Playground**, submit one fresh `api-standard` request and inspect status, source, remaining permits, headers, request ID, and client-observed latency.
+3. Use a fresh `login-strict` key for six requests: the first five are allowed and the sixth is an expected upstream `429`, not an application failure.
+4. Run the bounded **Demo Traffic Lab** and explain that its statistics belong only to this browser session; use k6 for load testing.
+5. Open Grafana to correlate browser activity with server-wide metrics, then use **Architecture** to explain Lua atomicity, failure modes, and the lease bound.
+
+The deterministic version, including Redis-outage recovery, is in [docs/DEMO.md](docs/DEMO.md).
 
 ## Build and test
 
@@ -37,7 +73,22 @@ docker compose --profile observability down -v --remove-orphans
 ./mvnw -B -ntp install            # required before using the local starter from another project
 ```
 
-Surefire `*Test` tests are Docker-free. Failsafe `*IT` tests own their Redis containers. The complete clean reactor runs 144 tests and currently measures 95.80% line coverage (799/834) and 86.84% branch coverage (343/395) across the core and starter. An aggregate build gate enforces at least 80% line coverage. Per-module JaCoCo reports are written to `target/site/jacoco/index.html`; the combined report is `rate-limiter-coverage/target/site/jacoco-aggregate/index.html`. CI uploads aggregate XML/HTML plus CycloneDX `target/bom.json`. The core build includes an Enforcer rule that rejects Spring, Redis, Lettuce, and Caffeine dependencies.
+Surefire `*Test` tests are Docker-free. Failsafe `*IT` tests own their Redis containers. The complete clean reactor reports the exact test and coverage results for the checked-out commit, and an aggregate build gate enforces at least 80% line coverage. Per-module JaCoCo reports are written to `target/site/jacoco/index.html`; the combined report is `rate-limiter-coverage/target/site/jacoco-aggregate/index.html`. CI uploads aggregate XML/HTML plus CycloneDX `target/bom.json`. The core build includes an Enforcer rule that rejects Spring, Redis, Lettuce, and Caffeine dependencies.
+
+Frontend checks are intentionally independent of Maven:
+
+```bash
+cd rate-limiter-ui
+npm ci
+npm run format:check
+npm run lint
+npm run typecheck
+npm run test:coverage
+npm run build
+npm run api:check
+```
+
+For local development, keep the Spring app on port 8080, run `npm run dev`, and open [http://localhost:5173/console](http://localhost:5173/console). Vite proxies only the required relative API and health paths. Run the full production-image E2E flow from the repository root with `./scripts/ui-e2e.sh`; it owns a uniquely named isolated Compose project and alternate ports.
 
 ## HTTP examples
 
@@ -70,10 +121,11 @@ curl http://localhost:8080/api/v1/policies | jq
 docker compose --profile observability up -d
 ```
 
+- Operations Console: [http://localhost:3001/console](http://localhost:3001/console)
 - OpenAPI JSON: [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
-- Swagger UI, demo profile only: [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html)
+- Swagger UI, non-production profiles: [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html)
 - Prometheus: [http://localhost:9090](http://localhost:9090)
-- Grafana: [http://localhost:3000](http://localhost:3000) (`admin`/`admin` in the local default)
+- Grafana dashboard: [http://localhost:3000/d/distributed-rate-limiter/distributed-rate-limiter](http://localhost:3000/d/distributed-rate-limiter/distributed-rate-limiter) (`admin`/`admin` in the local default)
 
 ## Embedded Java API
 
@@ -98,6 +150,17 @@ final class SearchGateway {
 ```
 
 ## Architecture
+
+```mermaid
+flowchart LR
+    Browser[Browser] -->|relative /api and health requests| UI[Operations Console / unprivileged Nginx]
+    UI -->|frontend network| App[Spring Boot app]
+    App -->|backend network| Redis[(Redis + atomic Lua)]
+    Prometheus -->|scrape| App
+    Grafana --> Prometheus
+```
+
+The browser sees only localhost origins. Nginx resolves `app` through Docker DNS, forwards response status/body/rate-limit headers without retrying, and exposes only `/api/**` plus the exact liveness/readiness endpoints needed by the console. The UI is not attached to the Redis backend network. CORS stays disabled because production browser calls are same-origin.
 
 ```mermaid
 flowchart LR
@@ -218,12 +281,14 @@ The provisioned dashboard charts throughput, outcomes, decision/Redis p99, Redis
 
 The production profile refuses to start without both `RATE_LIMITER_API_KEY` and `RATE_LIMITER_KEY_HASH_SECRET`. API-key comparisons use fixed-length digests and constant-time comparison. Production protects `/api/v1/**`, Prometheus, and any enabled API docs; liveness/readiness remain available to orchestration. CORS is off, CSRF is disabled only for this stateless service-to-service API, body/input sizes are bounded, and secrets/raw keys are excluded from logs and metrics.
 
-Version 1 deliberately excludes dynamic policy CRUD, caller-supplied limits, multi-region active-active guarantees, a full Cluster/Sentinel lab, reactive/gRPC/non-Java APIs, idempotency/deduplication, delayed queues, Kubernetes/Helm/Terraform, a frontend, lease refunds, and retries after ambiguous timeouts. Future work may add these without weakening the documented invariants.
+The console is local demo/operations tooling, not a public production control plane. An optional API key is held only in React memory and is never baked into Vite, Docker, or Nginx. Logical keys and decision history are not persisted. A public deployment would require HTTPS and a real authenticated reverse proxy/RBAC layer; a service-to-service API key in browser memory is not sufficient public-console security.
+
+Version 1 deliberately excludes dynamic policy CRUD, caller-supplied limits, multi-region active-active guarantees, a full Cluster/Sentinel lab, reactive/gRPC/non-Java APIs, idempotency/deduplication, delayed queues, Kubernetes/Helm/Terraform, a public administration portal, lease refunds, and retries after ambiguous timeouts. Future work may add these without weakening the documented invariants.
 
 ## Documentation
 
-- [Architecture](docs/ARCHITECTURE.md) · [Algorithms](docs/ALGORITHMS.md) · [Cache consistency](docs/CACHE_CONSISTENCY.md)
-- [Failure modes](docs/FAILURE_MODES.md) · [Runbook](docs/RUNBOOK.md) · [Demo](docs/DEMO.md)
+- [Operations Console](docs/UI.md) · [Architecture](docs/ARCHITECTURE.md) · [Algorithms](docs/ALGORITHMS.md) · [Cache consistency](docs/CACHE_CONSISTENCY.md)
+- [Failure modes](docs/FAILURE_MODES.md) · [Runbook](docs/RUNBOOK.md) · [Interview demo](docs/DEMO.md)
 - [Benchmarks](docs/BENCHMARKS.md) · [Interview guide](docs/INTERVIEW_GUIDE.md) · [Resume bullets](docs/RESUME_BULLETS.md)
 - [ADRs](docs/adr/) · [Security policy](SECURITY.md) · [Contributing](CONTRIBUTING.md)
 

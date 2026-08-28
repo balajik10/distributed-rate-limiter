@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 88 88" role="img" aria-labelledby="mark-title mark-description">
+  <title id="mark-title">Distributed Rate Limiter</title>
+  <desc id="mark-description">Three connected layers representing client, service, and Redis.</desc>
+  <rect x="8" y="10" width="72" height="18" rx="5" fill="#22d3ee"/>
+  <rect x="15" y="35" width="58" height="18" rx="5" fill="#818cf8"/>
+  <rect x="23" y="60" width="42" height="18" rx="5" fill="#34d399"/>
+  <path d="M44 28v7m0 18v7" stroke="#a8b3c7" stroke-width="4" stroke-linecap="round"/>
+</svg>

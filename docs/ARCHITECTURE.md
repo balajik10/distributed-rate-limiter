@@ -2,13 +2,18 @@
 
 ## Boundaries and deployment view
 
-`rate-limiter-core` is the public contract: immutable requests/decisions, policies, validation, enums, and the `PolicyProvider` SPI. It has no framework, Redis, or cache dependency. `rate-limiter-spring-boot-starter` adapts trusted configuration into policies and owns hashing, Redis/Lua execution, lease coordination, fallback classification, health, and metrics. `rate-limiter-service` is one consumer of that starter; it owns HTTP, security, request correlation, Problem Details, and presentation mapping.
+`rate-limiter-core` is the public contract: immutable requests/decisions, policies, validation, enums, and the `PolicyProvider` SPI. It has no framework, Redis, or cache dependency. `rate-limiter-spring-boot-starter` adapts trusted configuration into policies and owns hashing, Redis/Lua execution, lease coordination, fallback classification, health, and metrics. `rate-limiter-service` is one consumer of that starter; it owns HTTP, security, request correlation, Problem Details, and presentation mapping. `rate-limiter-ui` is a separate Node/Vite build that consumes the generated OpenAPI contract and is served by unprivileged Nginx; Maven does not download Node or couple the frontend build to Java consumers.
 
 ```mermaid
 flowchart TB
   subgraph Clients
     J[Embedded Java consumer]
     H[HTTP caller]
+    B[Browser]
+  end
+  subgraph UI[Operations Console container]
+    R[React application]
+    N[Unprivileged Nginx proxy]
   end
   subgraph JVM[One application instance]
     MVC[Spring MVC + security]
@@ -22,6 +27,7 @@ flowchart TB
     LUA[Atomic Lua scripts]
     STATE[Versioned hashed state + TTL]
   end
+  B --> R --> N --> MVC
   H --> MVC --> API
   J --> API
   API --> PR
@@ -32,7 +38,13 @@ flowchart TB
   Grafana --> Prometheus
 ```
 
-The default Compose stack uses a task-owned internal backend for service traffic and a separate task-owned bridge that makes loopback-only published ports work across Docker Engine versions. Production should use a dedicated private Redis deployment with ACL/TLS, `noeviction`, persistence, replication, backups, and latency/clock alerts.
+The default Compose stack has three network roles:
+
+- `backend` is internal and carries app-to-Redis plus Prometheus scrape traffic;
+- `frontend` contains only the app and UI so Nginx can resolve `app` without reaching Redis;
+- `host-access` preserves loopback-only published ports across Docker Engine versions for the backend/observability services.
+
+Nginx proxies relative `/api/**` plus the exact liveness/readiness endpoints. It disables upstream retries and error interception because an acquisition is non-idempotent and `429`/`503` bodies are part of the protocol. Docker DNS is re-resolved so the static console remains healthy while Spring is absent and recovers after app replacement. Production should use a dedicated private Redis deployment with ACL/TLS, `noeviction`, persistence, replication, backups, and latency/clock alerts.
 
 ## Class relationships
 
@@ -140,4 +152,8 @@ Strong multi-region active-active enforcement is excluded. A future design must 
 
 Liveness contains only application liveness and stays up during Redis loss. Readiness includes readiness state plus backend health and goes down. Known YAML policies remain resolvable even when Redis was absent at startup, so configured fallback still works.
 
+The UI's `/healthz` is intentionally independent: it proves only that Nginx serves the console. The browser polls Spring liveness/readiness through same-origin exact proxy routes, pauses polling while hidden, and marks old successful data stale after subsequent failures. It never infers that Redis, Prometheus, or Grafana is healthy from a link or from UI container health.
+
 Metrics use bounded dimensions and publish histogram buckets for decision and script timers. Request IDs live in MDC and responses but never become metric labels. Structured events can include policy, algorithm, outcome, source, duration, and sanitized error category; they exclude logical keys, request bodies, credentials, and Redis errors that may carry sensitive context.
+
+Browser-session decision counts and latency percentiles are derived only from requests completed in that tab. They are labeled as client observations and are not substitutes for the Prometheus/Grafana server-wide view.

@@ -11,6 +11,7 @@ duration="${DURATION:-15s}"
 policy_id="${POLICY_ID:-benchmark-token-strict}"
 key_cardinality="${KEY_CARDINALITY:-1}"
 base_url="${BASE_URL:-}"
+app_port="${APP_PORT:-8080}"
 api_key="${API_KEY:-}"
 metrics_url="${METRICS_URL:-}"
 policy_url_base="${POLICY_URL_BASE:-}"
@@ -75,8 +76,8 @@ if [[ -z "$base_url" ]]; then
   [[ -n "$compose_network" ]] || { echo "Could not resolve the app's Compose network" >&2; exit 2; }
   docker_network_args=(--network "$compose_network")
   base_url="http://app:8080"
-  metrics_url="${metrics_url:-http://localhost:8080/actuator/prometheus}"
-  policy_url_base="${policy_url_base:-http://localhost:8080/api/v1/policies}"
+  metrics_url="${metrics_url:-http://127.0.0.1:$app_port/actuator/prometheus}"
+  policy_url_base="${policy_url_base:-http://127.0.0.1:$app_port/api/v1/policies}"
 else
   metrics_url="${metrics_url:-$base_url/actuator/prometheus}"
   policy_url_base="${policy_url_base:-$base_url/api/v1/policies}"

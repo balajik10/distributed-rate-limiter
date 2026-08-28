@@ -233,6 +233,12 @@
                 <exclude>build/results/**</exclude>
                 <exclude>work/**</exclude>
                 <exclude>outputs/**</exclude>
+                <exclude>rate-limiter-ui/node_modules/**</exclude>
+                <exclude>rate-limiter-ui/dist/**</exclude>
+                <exclude>rate-limiter-ui/coverage/**</exclude>
+                <exclude>rate-limiter-ui/playwright-report/**</exclude>
+                <exclude>rate-limiter-ui/blob-report/**</exclude>
+                <exclude>rate-limiter-ui/test-results/**</exclude>
               </excludes>
               <trimTrailingWhitespace/>
               <endWithNewline/>

@@ -70,7 +70,18 @@ class ServiceApplicationContextTest {
         .perform(get("/v3/api-docs"))
         .andExpect(status().isOk())
         .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath("$.paths['/api/v1/rate-limits/check']").exists());
+        .andExpect(jsonPath("$.paths['/api/v1/rate-limits/check']").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/rate-limits/check'].post.responses['200']").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/rate-limits/check'].post.responses['429']").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/rate-limits/check'].post.responses['503']").exists())
+        .andExpect(
+            jsonPath(
+                    "$.paths['/api/v1/rate-limits/check'].post.responses['429'].headers['Retry-After']")
+                .exists())
+        .andExpect(
+            jsonPath(
+                    "$.paths['/api/v1/rate-limits/check'].post.responses['200'].headers['X-Request-Id']")
+                .exists());
 
     mockMvc
         .perform(get("/swagger-ui/index.html"))

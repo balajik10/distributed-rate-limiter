@@ -9,7 +9,7 @@
   --border-strong: #3a4968;
   --text: #f8fafc;
   --muted: #a8b3c7;
-  --dim: #71809b;
+  --dim: #8090aa;
   --accent: #22d3ee;
   --accent-strong: #06b6d4;
   --allowed: #34d399;
@@ -28,7 +28,7 @@
   --border-strong: #bac7da;
   --text: #14213a;
   --muted: #526078;
-  --dim: #71809b;
+  --dim: #596981;
   --accent: #087e8b;
   --accent-strong: #066b76;
   --allowed: #047857;
@@ -1290,7 +1290,7 @@ fieldset legend {
 .policy-title code {
   color: var(--accent);
 }
-.policy-title span {
+.policy-title > div > span {
   color: var(--dim);
   font-size: 0.7rem;
 }

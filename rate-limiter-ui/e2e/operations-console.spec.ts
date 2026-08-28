@@ -224,12 +224,20 @@ test("responsive layouts, keyboard navigation, and axe checks pass", async ({
   await expect(drawer).toBeHidden();
   await expect(menu).toBeFocused();
 
-  for (const route of [
+  const auditedRoutes = [
     "/console",
     "/console/policies",
     "/console/system",
     "/console/architecture",
-  ]) {
+  ];
+  for (const route of auditedRoutes) {
+    await page.goto(route);
+    await assertNoAxeViolations(page);
+  }
+
+  await page.goto("/console");
+  await page.getByRole("button", { name: "Use light theme" }).click();
+  for (const route of auditedRoutes) {
     await page.goto(route);
     await assertNoAxeViolations(page);
   }

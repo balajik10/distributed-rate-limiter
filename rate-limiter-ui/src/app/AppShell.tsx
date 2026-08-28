@@ -92,7 +92,10 @@ function CredentialControl() {
 
   return (
     <details className="credential-control">
-      <summary className="icon-button credential-summary">
+      <summary
+        className="icon-button credential-summary"
+        aria-label="Session API key settings"
+      >
         <KeyRound aria-hidden="true" size={18} />
         <span className="desktop-only">Session key</span>
         {apiKey ? (

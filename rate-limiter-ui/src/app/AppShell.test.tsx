@@ -165,7 +165,15 @@ describe("application shell", () => {
     );
     await screen.findByText("api-standard");
 
-    await user.click(screen.getByText("Session key"));
+    const credentialToggle = screen.getByText("Session key").closest("summary");
+    if (!credentialToggle) {
+      throw new Error("Session key summary was not rendered");
+    }
+    expect(credentialToggle).toHaveAttribute(
+      "aria-label",
+      "Session API key settings",
+    );
+    await user.click(credentialToggle);
     const credential = screen.getByLabelText("Optional X-API-Key");
     expect(credential).toHaveAttribute("type", "password");
     await user.type(credential, "only-in-memory");

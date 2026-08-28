@@ -94,9 +94,9 @@ async function openSingleCheck(
   await expect(
     page.getByRole("heading", { name: "Acquire permits" }),
   ).toBeVisible();
-  await page.getByLabel("Policy").selectOption(policyId);
-  await page.getByLabel("Logical key").fill(key);
-  await page.getByLabel("Permits").fill("1");
+  await page.getByLabel("Policy", { exact: true }).selectOption(policyId);
+  await page.getByLabel("Logical key", { exact: true }).fill(key);
+  await page.getByLabel("Permits", { exact: true }).fill("1");
 }
 
 async function submitSingleCheck(page: Page): Promise<number> {
@@ -356,10 +356,10 @@ test("bounded traffic schedules exactly the requested count and Stop prevents ne
 }) => {
   await page.goto("/console/playground");
   await page.getByRole("tab", { name: "Demo Traffic Lab" }).click();
-  await page.getByLabel("Policy").selectOption("api-standard");
-  await page.getByLabel("Total requests").fill("8");
-  await page.getByLabel("Target rate").fill("10");
-  await page.getByLabel("Concurrency").fill("2");
+  await page.getByLabel("Policy", { exact: true }).selectOption("api-standard");
+  await page.getByLabel("Total requests", { exact: true }).fill("8");
+  await page.getByLabel("Target rate", { exact: true }).fill("10");
+  await page.getByLabel("Concurrency", { exact: true }).fill("2");
   await page.getByRole("button", { name: "Fresh key" }).last().click();
   await page.getByRole("button", { name: "Start bounded run" }).click();
 
@@ -372,8 +372,8 @@ test("bounded traffic schedules exactly the requested count and Stop prevents ne
   await expect(metric("Responses")).toHaveText("8", { timeout: 10_000 });
   await expect(page.getByText("Complete", { exact: true })).toBeVisible();
 
-  await page.getByLabel("Total requests").fill("20");
-  await page.getByLabel("Target rate").fill("5");
+  await page.getByLabel("Total requests", { exact: true }).fill("20");
+  await page.getByLabel("Target rate", { exact: true }).fill("5");
   await page.getByRole("button", { name: "Fresh key" }).last().click();
   await page.getByRole("button", { name: "Start bounded run" }).click();
   await expect(metric("Scheduled")).not.toHaveText("0", { timeout: 3_000 });
@@ -404,8 +404,12 @@ test("task-owned Redis interruption renders fail-open, fail-closed, and recovery
     await expect(page.getByText("FAIL OPEN", { exact: true })).toBeVisible();
     await assertNoAxeViolations(page);
 
-    await page.getByLabel("Policy").selectOption("login-strict");
-    await page.getByLabel("Logical key").fill(freshKey("fail-closed"));
+    await page
+      .getByLabel("Policy", { exact: true })
+      .selectOption("login-strict");
+    await page
+      .getByLabel("Logical key", { exact: true })
+      .fill(freshKey("fail-closed"));
     expect(await submitSingleCheck(page)).toBe(503);
     await expect(
       page.getByRole("heading", {
@@ -422,7 +426,9 @@ test("task-owned Redis interruption renders fail-open, fail-closed, and recovery
     );
   }
 
-  await page.getByLabel("Logical key").fill(freshKey("recovered"));
+  await page
+    .getByLabel("Logical key", { exact: true })
+    .fill(freshKey("recovered"));
   expect(await submitSingleCheck(page)).toBe(200);
   await expect(
     page.getByRole("heading", { name: "Request allowed" }),

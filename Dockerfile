@@ -4,7 +4,7 @@ WORKDIR /workspace
 COPY . .
 RUN MAVEN_CONFIG= ./mvnw -B -ntp -DskipTests package
 
-FROM eclipse-temurin:21-jre-alpine AS runtime
+FROM eclipse-temurin:25-jre-alpine AS runtime
 RUN apk add --no-cache curl \
     && addgroup -S -g 10001 ratelimiter \
     && adduser -S -D -H -u 10001 -G ratelimiter ratelimiter
